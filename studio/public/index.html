@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<meta name="theme-color" content="#0d0f12">
+	<title>SmartMirror Studio</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<header class="topbar">
+		<div class="brand">
+			<span class="logo" aria-hidden="true"></span>
+			<span>SmartMirror <b>Studio</b></span>
+		</div>
+		<div class="mirror-status" id="mirrorStatus" title="Состояние зеркала">
+			<span class="dot"></span><span class="label">…</span>
+		</div>
+		<button class="btn primary" id="applyBtn" disabled>Применить</button>
+	</header>
+
+	<main class="workspace">
+		<section class="board-area">
+			<div class="toolbar">
+				<div class="segmented" role="tablist" aria-label="Вид зеркала">
+					<button role="tab" data-view="scheme" class="active">Схема</button>
+					<button role="tab" data-view="live">Живой экран</button>
+				</div>
+				<div class="segmented" aria-label="Раскладка">
+					<button data-placement="regions" class="active" title="Виджеты стоят в зонах MagicMirror²">Зоны</button>
+					<button data-placement="free" title="Виджет можно поставить в любую точку экрана">Свободно</button>
+				</div>
+				<div class="segmented" aria-label="Ориентация">
+					<button data-orient="portrait" class="active" title="Вертикальный экран">▯</button>
+					<button data-orient="landscape" title="Горизонтальный экран">▭</button>
+				</div>
+			</div>
+			<div class="banner" id="mirrorError" hidden>
+				<div><b>Зеркало не запущено.</b> <span id="mirrorErrorText"></span></div>
+				<div class="row">
+					<button class="btn small" id="restartBtn">Перезапустить</button>
+					<button class="btn small" id="showLogsBtn">Открыть журнал</button>
+				</div>
+			</div>
+			<div class="frame-wrap">
+				<div class="mirror" id="board"></div>
+				<div class="live offscreen" id="live">
+					<iframe id="liveFrame" title="Экран зеркала" tabindex="-1"></iframe>
+				</div>
+			</div>
+			<p class="hint"><a id="openMirror" class="link" href="#" target="_blank" rel="noopener" hidden>Открыть зеркало в отдельной вкладке ↗</a></p>
+			<p class="hint" id="boardHint">Перетаскивайте виджеты между зонами. Нажмите на виджет, чтобы настроить его.</p>
+		</section>
+
+		<aside class="panel">
+			<nav class="tabs" role="tablist">
+				<button role="tab" data-tab="widget" class="active">Виджет</button>
+				<button role="tab" data-tab="add">Добавить</button>
+				<button role="tab" data-tab="look">Вид</button>
+				<button role="tab" data-tab="logs">Журнал</button>
+			</nav>
+			<div class="tab-body" id="tab-widget"></div>
+			<div class="tab-body" id="tab-add" hidden></div>
+			<div class="tab-body" id="tab-look" hidden></div>
+			<div class="tab-body" id="tab-logs" hidden>
+				<div class="row between">
+					<span id="logsMeta" class="muted"></span>
+					<span class="row" style="margin:0">
+						<button class="btn small" id="diagBtn">Диагностика</button>
+						<button class="btn small" id="logsRefresh">Обновить</button>
+					</span>
+				</div>
+				<pre class="logs" id="logs"></pre>
+			</div>
+		</aside>
+	</main>
+
+	<div class="toast" id="toast" role="status" aria-live="polite"></div>
+	<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+.simple-todo {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.simple-todo li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  line-height: 1.6;
+}
+
+.simple-todo li.done span {
+  text-decoration: line-through;
+}

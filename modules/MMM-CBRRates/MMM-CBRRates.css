@@ -1,0 +1,7 @@
+.cbr-rates table { border-collapse: collapse; }
+.cbr-rates td { padding: 0 0.4em; line-height: 1.5; }
+.cbr-rates .symbol { width: 1.2em; text-align: center; }
+.cbr-rates .value { text-align: right; }
+.cbr-rates .change { font-size: 0.8em; text-align: right; }
+.cbr-rates .change.up { color: #8fd18f; }
+.cbr-rates .change.down { color: #e08a8a; }
