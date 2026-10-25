@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<meta name="theme-color" content="#0d0f12">
+	<title>Подключение зеркала к Wi‑Fi</title>
+	<link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="setup.css">
+</head>
+<body class="page">
+	<!-- Открывается на телефоне, подключённом к сети зеркала SmartMirror-XXXX. -->
+	<main class="sheet">
+		<div class="brand"><span class="logo" aria-hidden="true"></span><span>SmartMirror</span></div>
+
+		<section id="choose">
+			<h1>Подключите зеркало к Wi‑Fi</h1>
+			<p class="muted">Выберите домашнюю сеть. Телефон потом подключите к ней же — через неё вы будете настраивать виджеты.</p>
+			<div class="alert" id="error" hidden></div>
+			<div class="row between list-head">
+				<span class="muted">Сети рядом</span>
+				<button class="btn small" id="rescan">Обновить</button>
+			</div>
+			<ul class="nets" id="nets"></ul>
+			<button class="link other" id="otherBtn">Другая сеть (скрытая)…</button>
+
+			<form class="join" id="join" hidden autocomplete="off">
+				<div class="field" id="ssidField" hidden>
+					<label for="ssid">Название сети</label>
+					<input id="ssid" maxlength="32" autocapitalize="off" spellcheck="false">
+				</div>
+				<div class="field" id="passField">
+					<label for="password">Пароль Wi‑Fi от «<span id="joinName"></span>»</label>
+					<div class="pass">
+						<input id="password" type="password" minlength="8" maxlength="63" autocapitalize="off" spellcheck="false" autocomplete="current-password">
+						<button type="button" class="btn small" id="togglePass" aria-label="Показать пароль">👁</button>
+					</div>
+				</div>
+				<button class="btn primary wide" id="connectBtn" type="submit">Подключить</button>
+			</form>
+		</section>
+
+		<section id="waiting" hidden>
+			<div class="spinner"></div>
+			<h1>Зеркало подключается к «<span class="ssidName"></span>»</h1>
+			<p class="muted">Сейчас телефон отключится от сети SmartMirror — это нормально.</p>
+			<ol class="next">
+				<li>Подключите телефон к «<span class="ssidName"></span>», если он не переключится сам.</li>
+				<li>Отсканируйте новый QR-код на экране зеркала — откроется настройка виджетов.</li>
+			</ol>
+			<p class="muted small">Если пароль не подошёл, зеркало снова включит сеть SmartMirror, а на экране будет ошибка.</p>
+		</section>
+
+		<section id="done" hidden>
+			<div class="big-ok">✓</div>
+			<h1>Зеркало в сети «<span class="ssidName"></span>»</h1>
+			<p class="muted">Подключите телефон к этой же сети и отсканируйте QR-код на экране зеркала.</p>
+		</section>
+	</main>
+	<script src="setup.js"></script>
+</body>
+</html>
