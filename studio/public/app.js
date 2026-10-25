@@ -29,7 +29,8 @@ const state = {
 	mirror: null,
 	measured: {}, // настоящие места виджетов на живом зеркале (доли экрана), от MMM-StudioBridge
 	missing: new Map(), // сторонние модули из макета, которые ещё не установлены: имя → ссылка
-	installing: null
+	installing: null,
+	device: null // Wi‑Fi и привязанные телефоны, если Studio работает на самом зеркале
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -815,9 +816,73 @@ function renderLookTab () {
 		el("h3", { text: "Оформление" }),
 		el("p", { class: "muted", text: "Применяются ко всем виджетам." }),
 		state.catalog.appearance.map((f) => field(f, a[f.key], (v) => { a[f.key] = v; changed({ rerender: false }); })),
+		deviceSection(),
 		el("div", { class: "row danger-zone" },
 			el("button", { class: "btn small danger", text: "Сбросить весь макет", onclick: resetLayout }))
 	].flat().filter((n) => n !== null && n !== undefined));
+}
+
+// ---------- устройство: Wi‑Fi и привязанные телефоны (только на Raspberry Pi) ----------
+
+function deviceSection () {
+	const d = state.device;
+	if (!d) return null;
+	const net = d.network.connected
+		? (d.network.ssid ? `Wi‑Fi «${d.network.ssid}»` : "кабель") + (d.network.ip ? `, адрес ${d.network.ip}` : "")
+		: "нет подключения";
+	return [
+		el("h3", { text: "Зеркало" }),
+		el("p", { class: "note", text: `Сеть: ${net}.` }),
+		el("div", { class: "row" },
+			el("button", { class: "btn small", text: "Показать QR для другого телефона", onclick: showPairQr }),
+			el("button", { class: "btn small", text: "Сменить Wi‑Fi", onclick: changeNetwork })),
+		d.pairing && d.devices.length
+			? el("p", { class: "muted", text: `Привязанные телефоны: ${d.devices.length}` })
+			: null,
+		d.pairing ? d.devices.map((x) => el("div", { class: "row between device" },
+			el("span", { text: `${deviceName(x.name)} · ${new Date(x.createdAt).toLocaleDateString("ru-RU")}` }),
+			el("button", { class: "btn small danger", text: "Отвязать", onclick: () => unpair(x) }))) : null
+	].flat();
+}
+
+function deviceName (ua = "") {
+	if (/iPhone/.test(ua)) return "iPhone";
+	if (/iPad/.test(ua)) return "iPad";
+	const android = ua.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build|\))/);
+	if (android) return android[1];
+	if (/Windows/.test(ua)) return "Компьютер с Windows";
+	if (/Mac OS X/.test(ua)) return "Mac";
+	return "Устройство";
+}
+
+async function loadDevice () {
+	try {
+		state.device = await api.get("/api/device");
+	} catch {
+		state.device = null; // Studio без управления сетью (запуск на компьютере)
+	}
+	if (state.catalog) renderLookTab();
+}
+
+async function showPairQr () {
+	await api.send("POST", "/api/device/show-qr");
+	toast("QR-код на экране зеркала на 5 минут — отсканируйте его другим телефоном", "ok");
+}
+
+async function changeNetwork () {
+	if (!confirm("Зеркало отключится от текущего Wi‑Fi и включит свою сеть SmartMirror. Дальше — как при первом запуске: QR на экране. Продолжить?")) return;
+	try {
+		await api.send("POST", "/api/device/change-network");
+		toast("Зеркало перешло в режим настройки Wi‑Fi — смотрите на экран", "ok");
+	} catch (err) {
+		toast(err.message, "error");
+	}
+}
+
+async function unpair (x) {
+	if (!confirm(`Отвязать «${deviceName(x.name)}»? С него больше нельзя будет менять зеркало.`)) return;
+	state.device.devices = (await api.send("POST", "/api/device/unpair", { id: x.id })).devices;
+	renderLookTab();
 }
 
 async function resetLayout () {
@@ -925,10 +990,15 @@ async function init () {
 
 	renderAll();
 	refreshModules();
+	loadDevice();
 	await pollMirror(); // сначала узнаём порт зеркала, потом открываем живой экран
 	reloadLive();
 	if (new URLSearchParams(location.search).get("view") === "live") setView("live");
 	setInterval(pollMirror, 5000);
 }
 
-init().catch((err) => toast(`Не удалось загрузить Studio: ${err.message}`, "error"));
+init().catch((err) => {
+	// телефон отвязали или Studio открыли без привязки — показываем, как привязаться
+	if (err.status === 401 || /не привязан/.test(err.message)) location.replace("/");
+	else toast(`Не удалось загрузить Studio: ${err.message}`, "error");
+});

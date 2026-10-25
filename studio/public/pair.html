@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<meta name="theme-color" content="#0d0f12">
+	<title>SmartMirror</title>
+	<link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="setup.css">
+</head>
+<body class="page">
+	<!-- Studio открыли с телефона, который ещё не привязан к зеркалу. -->
+	<main class="sheet">
+		<div class="brand"><span class="logo" aria-hidden="true"></span><span>SmartMirror <b>Studio</b></span></div>
+		<h1>Отсканируйте QR-код на зеркале</h1>
+		<div class="alert" id="expired" hidden>Код устарел или уже использован. На зеркале уже новый — отсканируйте его ещё раз.</div>
+		<p class="muted">Менять виджеты можно только с телефона, который привязан к зеркалу. Код показан на экране, пока ни один телефон не привязан.</p>
+		<p class="muted">Чтобы добавить ещё один телефон, откройте Studio на уже привязанном и нажмите «Вид» → «Показать QR для другого телефона».</p>
+	</main>
+	<script>
+		document.getElementById("expired").hidden = new URLSearchParams(location.search).get("pair") !== "expired";
+	</script>
+</body>
+</html>

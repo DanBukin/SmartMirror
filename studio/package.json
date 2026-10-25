@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "demo": "node server.js --demo",
+    "pi-demo": "node server.js --demo --net=mock",
     "test": "node --test"
   },
   "engines": { "node": ">=22" },

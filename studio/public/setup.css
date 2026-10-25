@@ -1,0 +1,48 @@
+/* Страницы для телефона: настройка Wi‑Fi (setup.html) и «отсканируйте QR» (pair.html). */
+[hidden] { display: none !important; }
+.page { min-height: 100vh; }
+.sheet {
+  max-width: 480px; margin: 0 auto;
+  padding: max(20px, env(safe-area-inset-top)) 18px max(28px, env(safe-area-inset-bottom));
+}
+.sheet .brand { margin-bottom: 22px; }
+.sheet .brand span:last-child { display: inline; }
+.sheet h1 { font-size: 24px; line-height: 1.25; font-weight: 600; margin: 0 0 8px; }
+.sheet p { margin: 0 0 14px; }
+.small { font-size: 13px; }
+
+.alert { padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--danger); color: var(--danger); margin-bottom: 14px; }
+.list-head { margin: 18px 0 8px; }
+
+.nets { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.nets li + li { border-top: 1px solid var(--border); }
+.nets button {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px;
+  background: var(--surface); border: 0; text-align: left; cursor: pointer; min-height: 52px;
+}
+.nets button[aria-pressed="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
+.nets .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nets .empty { padding: 16px; color: var(--muted); background: var(--surface); }
+.bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; }
+.bars i { width: 4px; background: var(--border); border-radius: 1px; }
+.bars i:nth-child(1) { height: 25%; } .bars i:nth-child(2) { height: 50%; }
+.bars i:nth-child(3) { height: 75%; } .bars i:nth-child(4) { height: 100%; }
+.bars i.on { background: var(--text); }
+.lock { color: var(--muted); font-size: 13px; }
+
+.link { background: none; border: 0; color: var(--accent); padding: 0; cursor: pointer; }
+.other { margin: 12px 0 18px; }
+.join { padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.pass { display: flex; gap: 8px; }
+.pass input { flex: 1; min-width: 0; }
+.wide { width: 100%; min-height: 48px; font-size: 16px; }
+
+.spinner {
+  width: 44px; height: 44px; border-radius: 50%; margin: 20px 0;
+  border: 4px solid var(--border); border-top-color: var(--accent); animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.next { padding-left: 20px; margin: 0 0 16px; }
+.next li { margin-bottom: 8px; }
+.big-ok { font-size: 56px; color: var(--ok); line-height: 1; margin: 12px 0; }
+.qr-hint { display: flex; justify-content: center; margin: 26px 0; }

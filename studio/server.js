@@ -17,6 +17,9 @@ const { Mirror } = require("./lib/mirror");
 const { handleDemo } = require("./lib/demo");
 const { Installer } = require("./lib/installer");
 const { widgetSource } = require("./lib/catalog");
+const { createNetwork } = require("./lib/network");
+const { Onboarding } = require("./lib/onboarding");
+const { qrSvg } = require("./lib/qr");
 
 const STUDIO_PORT = Number(process.env.STUDIO_PORT || 8090);
 const STUDIO_HOST = process.env.STUDIO_HOST || "0.0.0.0";
@@ -27,13 +30,32 @@ const MM_PORT = Number(process.env.MM_PORT || 8080);
 const MM_ADDRESS = process.env.MM_ADDRESS || "127.0.0.1";
 const MM_START_CMD = (process.env.MM_START_CMD || "node serveronly").split(" ");
 const DEMO = process.env.DEMO === "1" || process.argv.includes("--demo");
-const DATA_FILE = path.join(__dirname, "data", "layout.json");
+const DATA_FILE = path.join(process.env.STUDIO_DATA || path.join(__dirname, "data"), "layout.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const MODULES_SRC = path.join(__dirname, "..", "modules");
+// Первый запуск на Raspberry Pi: NET_BACKEND=nmcli (настоящий Wi‑Fi) или mock (виртуальный).
+const NET_BACKEND = process.env.NET_BACKEND || process.argv.find((a) => a.startsWith("--net="))?.slice(6) || "";
+// Привязка телефона: менять зеркало из сети можно только с привязанного устройства.
+const PAIRING = (process.env.PAIRING ?? (NET_BACKEND ? "1" : "0")) === "1";
+// Порт 80 для «страницы входа» точки доступа: телефон сам открывает настройку.
+const CAPTIVE_PORT = Number(process.env.CAPTIVE_PORT || 0) || null;
 
 const installer = new Installer(MM_DIR);
 const isInstalled = (name) => installer.isInstalled(name);
 const mirror = new Mirror({ dir: MM_DIR, port: MM_PORT, address: MM_ADDRESS, command: MM_START_CMD, env: {} });
+
+const network = createNetwork(NET_BACKEND, { dataDir: path.dirname(DATA_FILE) });
+const onboarding = network && new Onboarding({
+	network,
+	file: path.join(path.dirname(DATA_FILE), "device.json"),
+	studioPort: STUDIO_PORT,
+	captivePort: CAPTIVE_PORT,
+	bootWait: Number(process.env.BOOT_WAIT_MS ?? (NET_BACKEND === "mock" ? 1500 : 25000)),
+	offlineGrace: Number(process.env.OFFLINE_GRACE_MS ?? 60000),
+	tick: Number(process.env.ONBOARDING_TICK_MS ?? 5000),
+	// после настройки Wi‑Fi модули (погода, новости) должны сразу сходить за данными
+	onOnline: () => { if (mirror.child) mirror.restart().catch(() => {}); }
+});
 
 // ---------- хранилище макета ----------
 
@@ -74,7 +96,7 @@ async function writeMirrorConfig (layout) {
 	const config = buildConfig(layout, {
 		address: MM_ADDRESS,
 		port: mirror.port,
-		ipWhitelist: (process.env.MM_IP_WHITELIST || "127.0.0.1,::ffff:127.0.0.1,::1").split(",").filter(Boolean),
+		ipWhitelist: (process.env.MM_IP_WHITELIST ?? "127.0.0.1,::ffff:127.0.0.1,::1").split(",").filter(Boolean),
 		demoBase: DEMO ? `http://127.0.0.1:${STUDIO_PORT}/demo` : null
 	}, isInstalled);
 	const cfgPath = path.join(MM_DIR, "config", "config.js");
@@ -198,8 +220,30 @@ function readBody (req) {
 	});
 }
 
-async function serveStatic (url, res) {
-	const rel = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
+const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+const isLocal = (req) => LOOPBACK.has(req.socket.remoteAddress);
+
+function cookies (req) {
+	return Object.fromEntries((req.headers.cookie || "").split(";").map((c) => c.trim().split("=")).filter(([k, v]) => k && v).map(([k, v]) => [k, decodeURIComponent(v)]));
+}
+
+/** Можно ли этому запросу менять зеркало: с самого устройства — да, из сети — только с привязанного телефона. */
+const authorized = (req) => !PAIRING || isLocal(req) || Boolean(onboarding?.isPaired(cookies(req).sm_token));
+
+function sendSvg (res, svg) {
+	res.writeHead(200, { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" });
+	res.end(svg);
+}
+
+function redirect (res, location, headers = {}) {
+	res.writeHead(302, { Location: location, "Cache-Control": "no-store", ...headers });
+	res.end();
+}
+
+const PAGES = { "/": "index.html", "/screen": "screen.html", "/setup": "setup.html" };
+
+async function serveStatic (url, res, page) {
+	const rel = page || PAGES[url.pathname] || url.pathname.slice(1);
 	const file = path.join(PUBLIC_DIR, path.normalize(rel));
 	if (!file.startsWith(PUBLIC_DIR + path.sep)) return sendJson(res, 404, { error: "not found" });
 	try {
@@ -211,11 +255,85 @@ async function serveStatic (url, res) {
 	}
 }
 
+/** Первый запуск: экран зеркала, настройка Wi‑Fi с телефона, привязка. null — запрос не про это. */
+async function routeOnboarding (req, res, url) {
+	const key = `${req.method} ${url.pathname}`;
+	const local = isLocal(req);
+	const inSetup = onboarding.phase !== "online";
+	if (url.pathname.startsWith("/api/device") && !authorized(req)) return sendJson(res, 401, { error: "Телефон не привязан к зеркалу", needPairing: true });
+
+	switch (key) {
+		// экран зеркала: здесь пароль точки доступа и код привязки, поэтому только с самого устройства
+		case "GET /api/onboarding/screen":
+			if (!local) return sendJson(res, 403, { error: "Только для экрана зеркала" });
+			return sendJson(res, 200, { ...onboarding.screenState(), mirrorPort: mirror.port, mirrorState: mirror.state });
+		case "GET /api/onboarding/qr/wifi.svg":
+		case "GET /api/onboarding/qr/setup.svg":
+		case "GET /api/onboarding/qr/studio.svg": {
+			if (!local) return sendJson(res, 403, { error: "Только для экрана зеркала" });
+			const kind = url.pathname.split("/").pop().replace(".svg", "");
+			const text = kind === "wifi" ? onboarding.wifiQrText() : kind === "setup" ? onboarding.setupUrl() : onboarding.studioUrl(true);
+			return sendSvg(res, qrSvg(text));
+		}
+		// страница настройки Wi‑Fi: открыта, пока зеркало в режиме настройки (в его сеть
+		// попадают только те, кто видел пароль на экране)
+		case "GET /api/onboarding/setup":
+			// в сети страница настройки узнаёт только, что всё получилось
+			if (!inSetup && !authorized(req)) return sendJson(res, 200, { phase: onboarding.phase, ssid: onboarding.setupState().ssid });
+			onboarding.touchSetup();
+			return sendJson(res, 200, onboarding.setupState());
+		case "POST /api/onboarding/rescan":
+			if (!inSetup) return sendJson(res, 409, { error: "Зеркало уже подключено к Wi‑Fi" });
+			onboarding.touchSetup();
+			return sendJson(res, 200, { networks: await onboarding.rescan() });
+		case "POST /api/onboarding/connect": {
+			const body = await readBody(req);
+			onboarding.touchSetup();
+			const r = onboarding.connect(body.ssid, body.password, { hidden: Boolean(body.hidden) });
+			return sendJson(res, r.ok ? 202 : 400, r.ok ? onboarding.setupState() : r);
+		}
+		case "GET /pair": {
+			const token = onboarding.pair(url.searchParams.get("code"), req.headers["user-agent"]);
+			if (!token) return redirect(res, "/?pair=expired");
+			return redirect(res, "/", { "Set-Cookie": `sm_token=${token}; Path=/; Max-Age=315360000; HttpOnly; SameSite=Lax` });
+		}
+		// устройство: для привязанного телефона
+		case "GET /api/device":
+			return sendJson(res, 200, { pairing: PAIRING, phase: onboarding.phase, network: onboarding.screenState().network, devices: onboarding.devices() });
+		case "POST /api/device/show-qr":
+			onboarding.showQr();
+			return sendJson(res, 200, { ok: true });
+		case "POST /api/device/change-network": {
+			const r = onboarding.changeNetwork();
+			return sendJson(res, r.ok ? 200 : 409, r);
+		}
+		case "POST /api/device/unpair": {
+			const body = await readBody(req);
+			return sendJson(res, onboarding.unpair(body.id) ? 200 : 404, { devices: onboarding.devices() });
+		}
+		// «окружение» виртуального Wi‑Fi для проверок: выключить/включить роутер
+		case "POST /api/dev/network": {
+			if (NET_BACKEND !== "mock" || !local) return sendJson(res, 404, { error: "not found" });
+			const body = await readBody(req);
+			return sendJson(res, network.setRouter(body.ssid, body.up) ? 200 : 404, await network.status());
+		}
+	}
+	// пока зеркало настраивается, всё из его сети ведёт на страницу настройки
+	if (inSetup && !local && req.method === "GET" && url.pathname === "/") return redirect(res, "/setup");
+	return null;
+}
+
 async function route (req, res) {
 	const url = new URL(req.url, "http://localhost");
 	const key = `${req.method} ${url.pathname}`;
 
 	if (url.pathname.startsWith("/demo/") && DEMO && handleDemo(url, res)) return;
+	if (onboarding && (await routeOnboarding(req, res, url)) !== null) return;
+	if (!authorized(req)) {
+		// без привязки: страница «отсканируйте QR на зеркале» вместо Studio
+		if (url.pathname === "/" || url.pathname === "/index.html") return serveStatic(url, res, "pair.html");
+		if (url.pathname.startsWith("/api/")) return sendJson(res, 401, { error: "Телефон не привязан к зеркалу — отсканируйте QR-код на экране", needPairing: true });
+	}
 
 	switch (key) {
 		case "GET /api/catalog":
@@ -280,6 +398,17 @@ const server = http.createServer((req, res) => {
 	route(req, res).catch((err) => sendJson(res, 400, { error: err.message }));
 });
 
+/**
+ * Порт 80 в режиме настройки: DNS точки доступа отвечает адресом зеркала на любое имя
+ * (pi/install.sh), а этот сервер отправляет все чужие адреса на страницу настройки —
+ * так iPhone и Android сами показывают её после подключения к сети.
+ */
+const captive = CAPTIVE_PORT && http.createServer((req, res) => {
+	const host = String(req.headers.host || "").replace(/:\d+$/, "");
+	if (onboarding && onboarding.phase !== "online" && host !== network.apIp) return redirect(res, onboarding.setupUrl());
+	route(req, res).catch((err) => sendJson(res, 400, { error: err.message }));
+});
+
 async function main () {
 	if (!fs.existsSync(path.join(MM_DIR, "serveronly"))) {
 		console.error(`MagicMirror² не найден в ${MM_DIR}. Укажите путь в MM_DIR.`);
@@ -289,7 +418,10 @@ async function main () {
 	mirror.port = await pickMirrorPort();
 	server.listen(STUDIO_PORT, STUDIO_HOST, () => {
 		console.log(`SmartMirror Studio: http://localhost:${STUDIO_PORT}  (зеркало: http://localhost:${mirror.port}${DEMO ? ", демо-данные" : ""})`);
+		if (onboarding) console.log(`Экран зеркала: http://localhost:${STUDIO_PORT}/screen  (Wi‑Fi: ${NET_BACKEND}${PAIRING ? ", привязка телефона" : ""})`);
 	});
+	if (captive) captive.listen(CAPTIVE_PORT, STUDIO_HOST).on("error", (e) => console.error(`Порт ${CAPTIVE_PORT} для страницы настройки недоступен: ${e.message}`));
+	onboarding?.start().catch((e) => console.error(`Первый запуск: ${e.message}`));
 	// при старте зеркало получает последний применённый макет
 	if (!store.appliedLayout) {
 		store.appliedLayout = store.layout;
@@ -303,6 +435,7 @@ async function main () {
 
 for (const sig of ["SIGINT", "SIGTERM"]) {
 	process.on(sig, async () => {
+		onboarding?.stop();
 		await mirror.stop();
 		process.exit(0);
 	});

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>SmartMirror</title>
+	<link rel="stylesheet" href="screen.css">
+</head>
+<body>
+	<!-- Экран за зеркалом. Открывается в полноэкранном браузере на Raspberry Pi
+	     (pi/kiosk.sh) и сам переключается: настройка Wi‑Fi → MagicMirror². -->
+	<iframe id="mirror" title="MagicMirror²" hidden></iframe>
+
+	<section class="stage" id="booting">
+		<div class="spinner"></div>
+		<p class="lead" id="bootText">Запускаюсь…</p>
+	</section>
+
+	<section class="stage setup" id="setup" hidden>
+		<header>
+			<div class="brand">SmartMirror</div>
+			<h1>Настройка зеркала</h1>
+		</header>
+		<div class="alert" id="setupError" hidden></div>
+		<div class="step">
+			<img class="qr big" id="wifiQr" alt="QR-код для подключения к сети зеркала">
+			<div>
+				<div class="num">1</div>
+				<h2>Наведите камеру телефона на код</h2>
+				<p>Телефон подключится к сети <b id="apSsid"></b></p>
+				<p class="dim">Если вручную — пароль <b class="mono" id="apPassword"></b></p>
+			</div>
+		</div>
+		<div class="step">
+			<img class="qr small" id="setupQr" alt="QR-код страницы настройки">
+			<div>
+				<div class="num">2</div>
+				<h2>Выберите домашний Wi‑Fi</h2>
+				<p>Страница настройки откроется сама. Если нет — отсканируйте этот код или откройте <b class="mono" id="setupUrl"></b></p>
+			</div>
+		</div>
+	</section>
+
+	<section class="stage" id="connecting" hidden>
+		<div class="spinner"></div>
+		<p class="lead">Подключаюсь к «<span id="connectingTo"></span>»…</p>
+		<p class="dim">Телефон отключится от сети SmartMirror — это нормально.<br>Вернитесь к домашнему Wi‑Fi: через несколько секунд здесь появится новый код.</p>
+	</section>
+
+	<aside class="card" id="studioCard" hidden>
+		<img class="qr" id="studioQr" alt="QR-код для открытия Studio">
+		<div>
+			<h2>Настройте зеркало с телефона</h2>
+			<p id="studioHint"></p>
+			<p class="dim mono" id="studioUrl"></p>
+		</div>
+	</aside>
+
+	<div class="pill" id="offline" hidden>Нет связи с Wi‑Fi, переподключаюсь…</div>
+	<div class="toast" id="paired" hidden>✓ Телефон подключён. Меняйте виджеты в приложении.</div>
+
+	<script src="screen.js"></script>
+</body>
+</html>

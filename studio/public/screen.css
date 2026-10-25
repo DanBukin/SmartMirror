@@ -1,0 +1,76 @@
+/* Экран за зеркалом: чёрный фон (за зеркалом он не виден), крупный белый текст.
+   Размеры в vmin, чтобы одинаково выглядело на любом мониторе и в любой ориентации. */
+:root {
+  --text: #fff;
+  --dim: #9aa3ad;
+  --accent: #6cb6ff;
+  --danger: #ff8080;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #000; color: var(--text); overflow: hidden; cursor: none; }
+body { font: 400 2.6vmin/1.4 "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; }
+[hidden] { display: none !important; }
+
+#mirror { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+
+.stage {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3vmin; padding: 6vmin; text-align: center;
+}
+.lead { font-size: 4vmin; margin: 0; }
+.dim { color: var(--dim); }
+.mono { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.04em; }
+h1 { font-size: 7vmin; font-weight: 300; margin: 0; }
+h2 { font-size: 3.4vmin; font-weight: 500; margin: 0 0 1vmin; }
+p { margin: 0 0 1vmin; }
+
+.spinner {
+  width: 9vmin; height: 9vmin; border-radius: 50%;
+  border: 0.8vmin solid rgba(255, 255, 255, 0.15); border-top-color: var(--text);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.setup { justify-content: flex-start; gap: 5vmin; padding-top: 8vmin; text-align: left; }
+.setup header { text-align: center; }
+.brand { color: var(--dim); text-transform: uppercase; letter-spacing: 0.3em; font-size: 2.2vmin; margin-bottom: 1vmin; }
+.step { display: flex; align-items: center; gap: 5vmin; width: min(100%, 120vmin); }
+.num {
+  width: 5vmin; height: 5vmin; border-radius: 50%; border: 0.3vmin solid var(--text);
+  display: grid; place-items: center; font-size: 2.8vmin; margin-bottom: 1.5vmin;
+}
+.qr { display: block; background: #fff; border-radius: 1.2vmin; flex: none; image-rendering: pixelated; }
+.qr.big { width: 42vmin; height: 42vmin; }
+.qr.small { width: 24vmin; height: 24vmin; margin-left: 9vmin; margin-right: 9vmin; }
+.alert {
+  width: min(100%, 120vmin); padding: 2vmin 3vmin; border-radius: 1.2vmin;
+  border: 0.25vmin solid var(--danger); color: var(--danger); font-size: 3vmin; text-align: center;
+}
+
+/* QR для Studio поверх MagicMirror², пока телефон не привязан */
+.card {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; align-items: center; gap: 4vmin; width: min(92vw, 110vmin);
+  padding: 4vmin; border-radius: 2.4vmin;
+  background: rgba(0, 0, 0, 0.88); border: 0.2vmin solid rgba(255, 255, 255, 0.25);
+}
+.card .qr { width: 30vmin; height: 30vmin; }
+
+.pill, .toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  padding: 1.4vmin 3vmin; border-radius: 99px; background: rgba(0, 0, 0, 0.85);
+  border: 0.2vmin solid rgba(255, 255, 255, 0.3); font-size: 2.6vmin; white-space: nowrap;
+}
+.pill { top: 2vmin; color: var(--dim); }
+.toast { top: 50%; transform: translate(-50%, -50%); width: max-content; max-width: 90vw; white-space: normal; text-align: center; font-size: 3.2vmin; animation: fade 8s forwards; }
+@keyframes fade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (orientation: landscape) {
+  .setup { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto 1fr; align-content: center; padding-top: 6vmin; }
+  .setup header, .setup .alert { grid-column: 1 / -1; justify-self: center; }
+  .step { flex-direction: column; align-items: center; text-align: center; width: auto; }
+  .step .num { margin-left: auto; margin-right: auto; }
+  .qr.small { width: 30vmin; height: 30vmin; margin: 6vmin 0; }
+}
